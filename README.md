@@ -4,7 +4,7 @@
 
 ## accounts.json
 ```
-}
+{
 "acc0": {
     "user_id": "your_student_id",
     "user_password": "your_password",

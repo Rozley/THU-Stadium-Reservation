@@ -4,19 +4,21 @@ import logging
 import time
 import sys
 
+
 class logger(object):
     """
     处理日志类
     """
-
     def __init__(self):
         # 配置输出格式
         self.LOG_FORMAT = "%(asctime)s %(name)s %(funcName)s %(levelname)s %(pathname)s \n%(message)s"
         # 配置输出时间的格式
         self.DATE_FORMAT = '%Y-%m-%d  %H:%M:%S %a '
-        # 配置日志输出位置
-        self.path = os.path.dirname(__file__) + r"/logfile/" + time. \
-            strftime("%Y-%m-%d", time.gmtime()) + ".log"
+        # 配置日志输出位置, 无位置自动创建
+        self.dir_path = os.path.dirname(__file__) + "/logfile/"
+        if not os.path.isdir(self.dir_path):
+            os.makedirs(self.dir_path)
+        self.path = self.dir_path + time.strftime("%Y-%m-%d", time.gmtime()) + ".log"
         self.setting()
 
     def setting(self):

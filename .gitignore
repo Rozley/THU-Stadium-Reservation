@@ -1,3 +1,4 @@
 # ignore ALL .log files
-*.json
+accounts.json
 *.idea
+*.log

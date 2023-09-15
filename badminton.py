@@ -2,9 +2,10 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.options import Options
 import time
 import json
-
+import math
 # 登陆页
 login_url = "https://50.tsinghua.edu.cn/dl.jsp"
 # 抢票目标页
@@ -23,12 +24,14 @@ gym_ids = {
 }
 # 是否需要刷新等待
 need_refresh = True
+options = Options()
+options.add_argument('--disable-notifications')
 
 
 class Badminton:
     def __init__(self):
         # 默认Chrome浏览器
-        self.driver = webdriver.Chrome()
+        self.driver = webdriver.Chrome(options=options)
         # 用户账户信息
         self.account_info = {}
         # 隐式等待，若组件未出现则进入等待，等待期间将持续寻找组件
@@ -53,16 +56,14 @@ class Badminton:
         self.driver.find_element(By.XPATH, '//*[@id="nav-main"]/ul/li[3]/a').click()
         self.driver.find_element(By.XPATH, '//*[@id="bookInfo"]/div/div[2]/a').click()
         for task in self.account_info['tasks']:
+            WebDriverWait(self.driver, 10, 0.1).until(EC.element_to_be_clickable((By.XPATH, "//*[text()='同意']")))
+            agree_btn = self.driver.find_element(By.XPATH, "//*[text()='同意']")
+            agree_btn.click()
             self.driver.get(target_url +
                             "&gymnasium_id=" + gym_ids[task['gym']+task['sport']][0] +
                             "&item_id=" + gym_ids[task['gym']+task['sport']][1] +
                             "&time_date=" + task['date'] +
                             "&userType=")
-
-            WebDriverWait(self.driver, 10, 0.1).until(EC.element_to_be_clickable((By.XPATH, "//*[text()='同意']")))
-            agree_btn = self.driver.find_element(By.XPATH, "//*[text()='同意']")
-            agree_btn.click()
-
             while need_refresh:
                 try:
                     self.driver.implicitly_wait(0)
@@ -76,18 +77,24 @@ class Badminton:
             iframe = self.driver.find_element(By.ID, "overlayView")
             self.driver.switch_to.frame(iframe)
 
-            non_ava_fields = self.driver.find_elements(By.XPATH, "//td[@time_session=\'" + task['time'] +
-                                                   "\' and @lock='true']")
-            all_fields = self.driver.find_elements(By.XPATH, "//td[@time_session=\'" + task['time'] + "\']")
-            ava_fields = list(set(all_fields).difference(set(non_ava_fields)))
-            ava_fields[-1].click()
+            for i in range(len(task['time'])):
+                non_ava_fields = self.driver.find_elements(By.XPATH, "//td[@time_session=\'" + task['time'][i] +
+                                                       "\' and string-length(@style)>0]")
+                all_fields = self.driver.find_elements(By.XPATH, "//td[@time_session=\'" + task['time'][i] + "\']")
+                ava_fields = list(set(all_fields).difference(set(non_ava_fields)))
+                if len(ava_fields) == 0:
+                    continue
+                else:
+                    # 选择一个被选中几率较小的场
+                    idx = round(len(ava_fields)/4)
+                    ava_fields[idx].click()
 
-            self.driver.switch_to.default_content()
+                    self.driver.switch_to.default_content()
 
-            odd_btn = self.driver.find_element(By.XPATH, "//span[@onclick='saveOdder()']")
-            odd_btn.click()
+                    odd_btn = self.driver.find_element(By.XPATH, "//span[@onclick='saveOdder()']")
+                    odd_btn.click()
 
-            time.sleep(10)
+                    time.sleep(1000)
 
     def choose_field(self):
         self.parse_account()

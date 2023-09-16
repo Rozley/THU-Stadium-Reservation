@@ -2,3 +2,4 @@
 accounts.json
 *.idea
 *.log
+*.pyc

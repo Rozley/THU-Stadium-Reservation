@@ -3,7 +3,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
-from selenium.common.exceptions import UnexpectedAlertPresentException
+from selenium.common.exceptions import UnexpectedAlertPresentException, NoSuchElementException
 import time
 import json
 from logger import logger
@@ -38,31 +38,51 @@ class Badminton:
         self.driver.implicitly_wait(1)
 
     def parse_account(self):
-        with open(account_path, 'r') as f:
-            reader = json.load(f)
-            self.account_info = reader['acc0']
-            print(self.account_info)
+        try:
+            with open(account_path, 'r', encoding='utf_8') as f:
+                reader = json.load(f)
+                self.account_info = reader['acc0']
+        except BaseException.Exception.OSError.FileNotFoundError as e:
+            logger.info('[信息]: 用户信息解析失败.\n' + 
+                        '[失败原因]: accounts.json文件不存在.\n')
+        # 解析完成
+        logger.info('[信息]: 用户' + self.account_info['user_id'] + '信息解析成功.\n')
+        return
 
     def parse_gym_id(self):
-        with open(gym_id_path, 'r') as f:
+        with open(gym_id_path, 'r', encoding='utf_8') as f:
             reader = json.load(f)
             gym_ids = reader['gym_ids']
             for task in self.account_info['tasks']:
                 task['gym_id'] = gym_ids[task['gym']+task['sport']][0]
                 task['sport_id'] = gym_ids[task['gym']+task['sport']][1]
+                logger.info('[信息]: ' + task['gym'] + task['sport'] + '信息加载成功.\n')
+        # 解析完成
+        logger.info('[信息]: 全部场馆运动信息加载成功.\n')
+        return
 
     def login(self):
-        # 打开登录页
-        self.driver.get("https://50.tsinghua.edu.cn/dl.jsp")
-        username = self.driver.find_element(By.ID, "login_username")
-        password = self.driver.find_element(By.ID, "login_password")
-        username.send_keys(self.account_info['user_id'])
-        password.send_keys(self.account_info['user_password'])
-        login_btn = self.driver.find_element(By.XPATH, "//input[@alt='Login']")
-        login_btn.click()
-        # 打开目标页面
-        self.driver.find_element(By.XPATH, '//*[@id="nav-main"]/ul/li[3]/a').click()
-        self.driver.find_element(By.XPATH, '//*[@id="bookInfo"]/div/div[2]/a').click()
+        try:
+            # 打开登录页
+            self.driver.get("https://50.tsinghua.edu.cn/dl.jsp")
+            username = self.driver.find_element(By.ID, "login_username")
+            password = self.driver.find_element(By.ID, "login_password")
+            username.send_keys(self.account_info['user_id'])
+            password.send_keys(self.account_info['user_password'])
+            login_btn = self.driver.find_element(By.XPATH, "//input[@alt='Login']")
+            login_btn.click()
+            # 打开目标页面
+            self.driver.find_element(By.XPATH, '//*[@id="nav-main"]/ul/li[3]/a').click()
+            self.driver.find_element(By.XPATH, '//*[@id="bookInfo"]/div/div[2]/a').click()
+            # 登录成功
+            logger.info('[信息]: 用户' + self.account_info['user_id'] + '登录成功.\n')
+        except NoSuchElementException as e:
+            # 登录失败
+            logger.info('[信息]: 用户' + self.account_info['user_id'] + '登录失败.\n' + 
+                        '[失败原因]: 用户名或密码错误.\n')
+        return
+
+    def choose_field(self):
         WebDriverWait(self.driver, 10, 1).until(EC.element_to_be_clickable((By.XPATH, "//*[text()='同意']")))
         agree_btn = self.driver.find_element(By.XPATH, "//*[text()='同意']")
         agree_btn.click()
@@ -118,10 +138,6 @@ class Badminton:
                     except UnexpectedAlertPresentException as e:
                         continue
 
-    def choose_field(self):
-        self.parse_account()
-        self.parse_gym_id()
-        self.login()
 
     def finish(self):
         self.driver.quit()
@@ -131,6 +147,13 @@ if __name__ == '__main__':
     # initialize badminton class
     bm = Badminton()
     try:
+        # 加载账户信息
+        bm.parse_account()
+        # 加载体育场馆信息
+        bm.parse_gym_id()
+        # 登录
+        bm.login()
+        # 选择场次
         bm.choose_field()
 
     except Exception as e:
